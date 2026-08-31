@@ -1,0 +1,870 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: food-delivery
+---
+apiVersion: v1
+data:
+  APP_MODE: distributed
+  TICK_MS: "500"
+kind: ConfigMap
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: simulation-config
+  namespace: food-delivery
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: database-url
+  namespace: food-delivery
+stringData:
+  url: postgres://delivery:delivery@food-delivery-db-rw:5432/delivery?sslmode=disable
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: food-delivery-db-credentials
+  namespace: food-delivery
+stringData:
+  password: delivery
+  username: delivery
+type: kubernetes.io/basic-auth
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: rabbitmq-credentials
+  namespace: food-delivery
+stringData:
+  password: delivery
+  url: amqp://delivery:delivery@rabbitmq:5672/
+  username: delivery
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: control-api
+    course.teko.ch/block: "06"
+  name: control-api
+  namespace: food-delivery
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: control-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: courier-simulator
+  namespace: food-delivery
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: courier-simulator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: courier-simulator-headless
+  namespace: food-delivery
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: courier-simulator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: customer-simulator
+  namespace: food-delivery
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: customer-simulator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: customer-simulator-headless
+  namespace: food-delivery
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: customer-simulator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: dashboard
+    course.teko.ch/block: "06"
+  name: dashboard
+  namespace: food-delivery
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: dashboard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: order-worker
+  namespace: food-delivery
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: order-worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: rabbitmq
+  namespace: food-delivery
+spec:
+  ports:
+  - name: amqp
+    port: 5672
+    targetPort: amqp
+  - name: management
+    port: 15672
+    targetPort: management
+  selector:
+    app.kubernetes.io/name: rabbitmq
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    course.teko.ch/block: "06"
+  name: restaurant-worker
+  namespace: food-delivery
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: restaurant-worker
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: control-api
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: control-api
+  namespace: food-delivery
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-api
+        app.kubernetes.io/part-of: food-delivery
+    spec:
+      containers:
+      - env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: database-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: simulation-config
+        image: food-delivery-control-api:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        name: control-api
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 250m
+            memory: 96Mi
+          requests:
+            cpu: 25m
+            memory: 24Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: dashboard
+  namespace: food-delivery
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dashboard
+        app.kubernetes.io/part-of: food-delivery
+    spec:
+      containers:
+      - env:
+        - name: NUXT_PUBLIC_API_BASE
+          value: ""
+        image: food-delivery-dashboard:local
+        imagePullPolicy: IfNotPresent
+        name: dashboard
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 300m
+            memory: 192Mi
+          requests:
+            cpu: 25m
+            memory: 48Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: order-worker
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: order-worker
+  namespace: food-delivery
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: order-worker
+        app.kubernetes.io/part-of: food-delivery
+    spec:
+      containers:
+      - env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: database-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        image: food-delivery-order-worker:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 8
+          periodSeconds: 10
+        name: order-worker
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 72Mi
+          requests:
+            cpu: 15m
+            memory: 18Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: restaurant-worker
+    course.teko.ch/block: "06"
+    food-delivery/entity-id: restaurant-bowl
+  name: restaurant-bowl
+  namespace: food-delivery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: restaurant-bowl
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: restaurant-bowl
+        app.kubernetes.io/name: restaurant-worker
+        app.kubernetes.io/part-of: food-delivery
+        food-delivery/entity-id: restaurant-bowl
+    spec:
+      containers:
+      - env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        - name: RESTAURANT_ID
+          value: restaurant-bowl
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: food-delivery-restaurant-worker:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 8
+          periodSeconds: 10
+        name: restaurant-worker
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 72Mi
+          requests:
+            cpu: 15m
+            memory: 18Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: restaurant-worker
+    course.teko.ch/block: "06"
+    food-delivery/entity-id: restaurant-curry
+  name: restaurant-curry
+  namespace: food-delivery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: restaurant-curry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: restaurant-curry
+        app.kubernetes.io/name: restaurant-worker
+        app.kubernetes.io/part-of: food-delivery
+        food-delivery/entity-id: restaurant-curry
+    spec:
+      containers:
+      - env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        - name: RESTAURANT_ID
+          value: restaurant-curry
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: food-delivery-restaurant-worker:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 8
+          periodSeconds: 10
+        name: restaurant-worker
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 72Mi
+          requests:
+            cpu: 15m
+            memory: 18Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: restaurant-worker
+    course.teko.ch/block: "06"
+    food-delivery/entity-id: restaurant-pizza
+  name: restaurant-pizza
+  namespace: food-delivery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: restaurant-pizza
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: restaurant-pizza
+        app.kubernetes.io/name: restaurant-worker
+        app.kubernetes.io/part-of: food-delivery
+        food-delivery/entity-id: restaurant-pizza
+    spec:
+      containers:
+      - env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        - name: RESTAURANT_ID
+          value: restaurant-pizza
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: food-delivery-restaurant-worker:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 8
+          periodSeconds: 10
+        name: restaurant-worker
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 72Mi
+          requests:
+            cpu: 15m
+            memory: 18Mi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/name: courier-simulator
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: courier-simulator
+  namespace: food-delivery
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: courier-simulator
+  serviceName: courier-simulator-headless
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: courier-simulator
+        app.kubernetes.io/part-of: food-delivery
+        food-delivery/entity-kind: courier
+    spec:
+      containers:
+      - env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        - name: COURIER_TICK_MS
+          value: "450"
+        - name: PICKUP_DELAY_MS
+          value: "900"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: food-delivery-courier-simulator:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 8
+          periodSeconds: 10
+        name: courier-simulator
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 72Mi
+          requests:
+            cpu: 15m
+            memory: 18Mi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/name: customer-simulator
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: customer-simulator
+  namespace: food-delivery
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customer-simulator
+  serviceName: customer-simulator-headless
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: customer-simulator
+        app.kubernetes.io/part-of: food-delivery
+        food-delivery/entity-kind: customer
+    spec:
+      containers:
+      - env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: rabbitmq-credentials
+        - name: ORDER_INTERVAL_MS
+          value: "15000"
+        - name: START_STAGGER_MS
+          value: "5000"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        image: food-delivery-customer-simulator:local
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 8
+          periodSeconds: 10
+        name: customer-simulator
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 72Mi
+          requests:
+            cpu: 15m
+            memory: 18Mi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: rabbitmq
+  namespace: food-delivery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  serviceName: rabbitmq
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rabbitmq
+        app.kubernetes.io/part-of: food-delivery
+    spec:
+      containers:
+      - env:
+        - name: RABBITMQ_DEFAULT_USER
+          valueFrom:
+            secretKeyRef:
+              key: username
+              name: rabbitmq-credentials
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: rabbitmq-credentials
+        image: rabbitmq:4.3.5-management-alpine
+        livenessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - -q
+            - ping
+          failureThreshold: 6
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+        name: rabbitmq
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - -q
+            - check_running
+          failureThreshold: 6
+          initialDelaySeconds: 8
+          periodSeconds: 5
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: "1"
+            memory: 768Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /var/lib/rabbitmq
+          name: data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/name: database-migrate
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: database-migrate
+  namespace: food-delivery
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: database-migrate
+    spec:
+      containers:
+      - env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: url
+              name: database-url
+        image: food-delivery-migrate:local
+        imagePullPolicy: IfNotPresent
+        name: migrate
+        resources:
+          limits:
+            cpu: 200m
+            memory: 64Mi
+          requests:
+            cpu: 10m
+            memory: 16Mi
+      restartPolicy: OnFailure
+  ttlSecondsAfterFinished: 600
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: food-delivery
+  namespace: food-delivery
+spec:
+  ingressClassName: traefik
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: control-api
+            port:
+              number: 8080
+        path: /api
+        pathType: Prefix
+      - backend:
+          service:
+            name: control-api
+            port:
+              number: 8080
+        path: /health
+        pathType: Prefix
+      - backend:
+          service:
+            name: control-api
+            port:
+              number: 8080
+        path: /metrics
+        pathType: Prefix
+      - backend:
+          service:
+            name: dashboard
+            port:
+              number: 3000
+        path: /
+        pathType: Prefix
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: food-delivery
+    course.teko.ch/block: "06"
+  name: food-delivery-db
+  namespace: food-delivery
+spec:
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
+  bootstrap:
+    initdb:
+      database: delivery
+      owner: delivery
+      secret:
+        name: food-delivery-db-credentials
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+  instances: 2
+  monitoring:
+    enablePodMonitor: false
+  primaryUpdateStrategy: unsupervised
+  resources:
+    limits:
+      cpu: "1"
+      memory: 768Mi
+    requests:
+      cpu: 100m
+      memory: 192Mi
+  storage:
+    size: 1Gi
+    storageClass: local-path
