@@ -1,0 +1,50 @@
+# Chart 1.12.1 / Alloy v1.19.2; existing Prometheus Operator CRDs are retained.
+crds:
+  create: false
+controller:
+  type: statefulset
+  replicas: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi
+alloy:
+  enableReporting: false
+  storagePath: /var/lib/alloy
+  mounts:
+    extra:
+      - name: data
+        mountPath: /var/lib/alloy
+  envFrom:
+    - secretRef:
+        name: grafana-cloud
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+rbac:
+  rules:
+    - apiGroups: ["", discovery.k8s.io]
+      resources: [pods, services, endpoints, endpointslices, namespaces]
+      verbs: [get, list, watch]
+    - apiGroups: [monitoring.coreos.com]
+      resources: [servicemonitors, podmonitors]
+      verbs: [get, list, watch]
+  clusterRules:
+    - apiGroups: [""]
+      resources: [nodes, nodes/metrics]
+      verbs: [get, list, watch]
+    - nonResourceURLs: [/metrics]
+      verbs: [get]
+serviceAccount:
+  name: alloy
+configReloader:
+  enabled: false

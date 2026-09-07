@@ -1,0 +1,6 @@
+{
+  "metricsUrl": "https://prometheus-prod-58-prod-eu-central-0.grafana.net/api/prom/push",
+  "metricsUser": "3558890",
+  "logsUrl": "https://logs-prod-039.grafana.net/loki/api/v1/push",
+  "logsUser": "1775120"
+}

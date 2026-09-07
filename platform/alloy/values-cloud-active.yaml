@@ -1,0 +1,3 @@
+# Keep kube-state-metrics, the operator and monitor CRDs for Alloy discovery.
+prometheus:
+  enabled: false
