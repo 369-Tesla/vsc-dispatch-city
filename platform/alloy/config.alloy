@@ -45,6 +45,17 @@ prometheus.remote_write "cloud" {
   external_labels = {cluster = "teko-k8s"}
   endpoint {
     url = sys.env("GC_METRICS_URL")
+    // Keep application metrics and the small set needed to operate the course cluster.
+    write_relabel_config {
+      source_labels = ["__name__"]
+      regex = "food_delivery_.*|up|scrape_duration_seconds|rabbitmq_queue_messages(_ready|_unacked|_published_total|_delivered_total|_delivered_ack_total|_acked_total|_redelivered_total)?|rabbitmq_queue_consumers|kube_deployment_(spec_replicas|status_replicas_available)|kube_statefulset_(replicas|status_replicas_ready)|kube_pod_(status_phase|container_status_restarts_total|container_status_ready)|kube_horizontalpodautoscaler_status_(current_replicas|desired_replicas)|container_cpu_usage_seconds_total|container_memory_working_set_bytes|cnpg_collector_(up|last_collection_error)|cnpg_pg_replication_(in_recovery|is_wal_receiver_up|lag|streaming_replicas)|cnpg_pg_database_size_bytes|cnpg_backends_total"
+      action = "keep"
+    }
+    // Keep restart catch-up batches small for the Cloud ingestion limit.
+    queue_config {
+      max_shards = 1
+      max_samples_per_send = 500
+    }
     basic_auth {
       username = sys.env("GC_METRICS_USER")
       password = sys.env("GC_TOKEN")

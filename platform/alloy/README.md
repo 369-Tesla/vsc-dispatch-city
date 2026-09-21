@@ -61,6 +61,10 @@ Token-Eingabe fortsetzen:
 Erfasst werden die bestehenden Anwendungs-, RabbitMQ- und PostgreSQL-Metriken,
 Kubernetes-Objektmetriken sowie Container-CPU/Speicher für `food-delivery` und
 `betrieb-lab`. Dazu kommen Pod-Logs und Kubernetes-Events dieser beiden Namespaces.
+Für die Cloud werden nur Anwendungsmetriken, Queue-Zustand und Nachrichtenanzahl,
+Datenbankbereitschaft und Replikation sowie Pod-/Replica-Status, Neustarts, HPA,
+CPU und Arbeitsspeicher behalten. Die Auswahl steht in `config.alloy` unter
+`write_relabel_config`; Erlang-Interna und übrige Detailmetriken werden nicht gesendet.
 Logs können Bestell-IDs und Fehlermeldungen enthalten und werden an deinen Cloud-Stack
 übertragen. Keine Traces oder Profile ohne weitere Instrumentierung.
 
