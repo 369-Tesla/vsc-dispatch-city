@@ -11,6 +11,8 @@ Aufnahmen aus dem laufenden lokalen Cluster `k3d-teko-k8s`.
 | 5 | [RabbitMQ: Exchanges](05-rabbitmq-exchanges.jpg) | Topic-Exchanges `food.events` und `food.dlx` |
 | 6 | [CloudNativePG / PostgreSQL](06-postgresql.jpg) | Bereiter Primary/Standby-Cluster und gespeicherte Orders, Events und Idempotenzschlüssel |
 | 7 | [Grafana Cloud](07-grafana-cloud.jpg) | Alle fünf Panels mit Daten: offene und gelieferte Bestellungen, bereite Pizza-Worker, Queue-Messwerte und Eventrate |
+| 8 | [Grafana: Infrastruktur](08-grafana-infrastruktur.jpg) | Containerstatus, Neustarts, Fehler, CPU, Arbeitsspeicher und Skalierung |
+| 9 | [Grafana: RabbitMQ und PostgreSQL](09-grafana-rabbitmq-postgresql.jpg) | Zustellungen, Consumer, Datenbankrollen, Replikation und Datenbankgrösse |
 
 Der PostgreSQL-Screenshot zeigt die [unveränderte Befehlsausgabe](06-postgresql-ausgabe.txt)
 in einer Browseransicht. Die Aufnahmen dokumentieren den laufenden Betrieb;
