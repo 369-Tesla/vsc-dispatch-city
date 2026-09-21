@@ -108,7 +108,11 @@ Event-Abfrage allein beweist deshalb keinen Übertragungsfehler.
 4. Importieren und **Last 15 minutes** einstellen.
 
 Das Dashboard behält die fünf Kursanzeigen bei und filtert auf `cluster="teko-k8s"`.
-Zum späteren erneuten Export `./platform/alloy/export-dashboard.ps1` ausführen.
+Das ergänzende Infrastruktur-Dashboard lässt sich genauso mit
+`platform/alloy/dispatch-city-infra-cloud.json` importieren. Es zeigt Ressourcen,
+Fehler, Skalierung, RabbitMQ-Zustellung und PostgreSQL-Replikation aus den bereits
+erfassten Metriken.
+Zum erneuten Export des Kurs-Dashboards `./platform/alloy/export-dashboard.ps1` ausführen.
 Im Cloud-Portal die Nutzung der aktiven Serien und des Logvolumens beobachten;
 die Namespace-Filter begrenzen die Menge, garantieren aber kein bestimmtes Kontingent.
 

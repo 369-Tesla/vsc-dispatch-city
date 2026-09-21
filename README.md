@@ -128,4 +128,4 @@ Dabei werden die lokalen Cluster-Daten gelöscht; Cloud-Zugang erneut einrichten
 ## Grundlagen und Hilfsmittel
 
 Grundlage sind die vom Dozenten bereitgestellten Kursbausteine und Arbeitsblätter.
-Für die Textgestaltung wurde ChatGPT als Hilfsmittel verwendet.
+Für die Textgestaltung und Grafana Cloud Anbindung wurde ChatGPT als Hilfsmittel verwendet.
